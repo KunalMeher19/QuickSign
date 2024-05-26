@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signature</title>
     <link rel="icon" href="/images/favicon-32x32.png">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     <style>
         body {
             background-color: #f0f2f5;
+            overflow-x: hidden;
         }
 
         .main {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            margin: 20px auto;
             width: 90%;
             max-width: 800px;
             padding: 20px;
@@ -41,14 +41,14 @@
             flex-wrap: wrap;
         }
 
-        .top > div,
-        .bottom > button {
+        .top>div,
+        .bottom>button {
             flex: 1;
             margin: 5px;
             text-align: center;
         }
 
-        .color > p {
+        .color>p {
             margin: 5px auto;
         }
 
@@ -78,9 +78,30 @@
                 height: 400px;
                 margin-top: 20px;
             }
+
+            /* Align the first two input bars side by side */
+            .top>div:first-child,
+            .top>div:nth-child(2) {
+                display: flex;
+                flex: 1;
+                justify-content: space-between;
+                width: 100%;
+                max-width: 400px;
+            }
+
+            .top>div:first-child input,
+            .top>div:nth-child(2) input {
+                width: 48%;
+            }
+
+            .top>div:nth-child(3) {
+                width: 100%;
+                max-width: 200px;
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="main">
         <div class="top">
@@ -124,17 +145,32 @@
         const saveButton = document.getElementById("saveButton");
         const retrieveButton = document.getElementById("retrieveButton");
 
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         let isDrawing = false;
         let lastX = 0;
         let lastY = 0;
+        let savedCanvasData;
 
         function resizeCanvas() {
             const canvasWidth = canvas.offsetWidth;
             const canvasHeight = 500;
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
             canvas.width = canvasWidth;
             canvas.height = canvasHeight;
             clearCanvas();
+
+            if (savedCanvasData) {
+                ctx.putImageData(savedCanvasData, 0, 0);
+            } else {
+                ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+            }
+
+            // Reapply stroke color
+            ctx.strokeStyle = colorPicker.value;
         }
 
         function clearCanvas() {
@@ -142,7 +178,14 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        window.addEventListener('resize', resizeCanvas);
+        function saveCanvasData() {
+            savedCanvasData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+
+        window.addEventListener('resize', () => {
+            saveCanvasData();
+            resizeCanvas();
+        });
 
         colorPicker.addEventListener('change', (event) => {
             ctx.strokeStyle = event.target.value;
@@ -151,6 +194,8 @@
         canvasColor.addEventListener('change', (event) => {
             ctx.fillStyle = event.target.value;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Save canvas after changing background color
+            saveCanvasData();
         });
 
         canvas.addEventListener('mousedown', (event) => {
@@ -172,10 +217,13 @@
 
         canvas.addEventListener('mouseup', () => {
             isDrawing = false;
+            saveCanvasData();
         });
 
         canvas.addEventListener('touchstart', (event) => {
-            event.preventDefault();
+            if (event.cancelable) {
+                event.preventDefault();
+            }
             const touch = event.touches[0];
             const rect = canvas.getBoundingClientRect();
             lastX = (touch.clientX - rect.left) * (canvas.width / rect.width);
@@ -185,7 +233,9 @@
 
         canvas.addEventListener('touchmove', (event) => {
             if (!isDrawing) return;
-            event.preventDefault();
+            if (event.cancelable) {
+                event.preventDefault();
+            }
             const touch = event.touches[0];
             const rect = canvas.getBoundingClientRect();
             const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
@@ -201,6 +251,7 @@
 
         canvas.addEventListener('touchend', () => {
             isDrawing = false;
+            saveCanvasData();
         });
 
         fontPicker.addEventListener('change', (event) => {
@@ -209,6 +260,7 @@
 
         clearButton.addEventListener('click', () => {
             clearCanvas();
+            saveCanvasData();
         });
 
         saveButton.addEventListener('click', () => {
@@ -227,6 +279,7 @@
                 img.onload = () => {
                     clearCanvas();
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    saveCanvasData();
                 };
             } else {
                 alert("No saved signature found.");
@@ -236,7 +289,9 @@
         window.onload = () => {
             resizeCanvas();
             clearCanvas();
+            saveCanvasData();
         };
     </script>
 </body>
+
 </html>
